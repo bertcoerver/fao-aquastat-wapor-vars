@@ -1,13 +1,15 @@
 ## Setup environment 
 
 ```sh
-conda env create --file=environment.yml
-
-conda activate aquapor-env
 
 cd "folder/in/which/to/output"
 
-git clone https://github.com/username/repository
+git clone https://github.com/bertcoerver/fao-aquastat-wapor-vars
 
-python path/to/main.py --years 2023 2024 --authenticate username password
+conda env create --file=fao-aquastat-wapor-vars/environment.yml
+
+conda activate aquapor-env
+
+# Create an account at `https://urs.earthdata.nasa.gov/`.
+python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 2024 --authenticate username password
 ```
