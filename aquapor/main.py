@@ -402,10 +402,10 @@ if __name__ == "__main__":
     ## Rasterize vector data
     #######
     countries_fh = rasterize(
-        countries_gpkg.as_posix(), aeti_fhs[0], "m49", where="is_cluster=0"
+        countries_gpkg, aeti_fhs[0], "m49", where="is_cluster=0"
     )
     clusters_fh = rasterize(
-        countries_gpkg.as_posix(), aeti_fhs[0], "m49", where="is_cluster=1"
+        countries_gpkg, aeti_fhs[0], "m49", where="is_cluster=1"
     )
 
     #######
