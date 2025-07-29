@@ -375,7 +375,7 @@ if __name__ == "__main__":
     #######
     ## Download input data
     #######
-    countries_gpkg = download_urls([""], country_folder)[0]
+    countries_gpkg = download_urls(["https://storage.googleapis.com/fao-cog-data/aquapor/UN_AREAS.gpkg"], country_folder)[0]
 
     imerg_fhs = preprocess_imerg(
         download_urls(
