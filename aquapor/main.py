@@ -3,7 +3,6 @@ import itertools
 import os
 from datetime import datetime
 from getpass import getpass
-from inspect import getsourcefile
 from pathlib import Path
 from typing import List
 
@@ -360,10 +359,6 @@ if __name__ == "__main__":
     #######
     ## Define paths
     #######
-    self_path = Path(getsourcefile(lambda: 0))
-    countries_gpkg = Path.joinpath(self_path.parent.parent, "data", "UN_AREAS.gpkg")
-    assert countries_gpkg.is_file(), f"Can't find `{countries_gpkg}`."
-
     workdir = os.getcwd()
     output_file = os.path.join(workdir, "results.csv")
     if os.path.isfile(output_file):
@@ -372,13 +367,16 @@ if __name__ == "__main__":
     chirps_folder = os.path.join(workdir, "CHIRPS_v3")
     imerg_folder = os.path.join(workdir, "IMERG_v7")
     aeti_folder = os.path.join(workdir, "L1-AETI-A")
-    for folder in [chirps_folder, imerg_folder, aeti_folder]:
+    country_folder = os.path.join(workdir, "countries")
+    for folder in [chirps_folder, imerg_folder, aeti_folder, country_folder]:
         if not os.path.isdir(folder):
             os.makedirs(folder)
 
     #######
     ## Download input data
     #######
+    countries_gpkg = download_urls([""], country_folder)[0]
+
     imerg_fhs = preprocess_imerg(
         download_urls(
             make_urls("IMERG_v7", years), imerg_folder, is_valid=is_valid, auth=auth
