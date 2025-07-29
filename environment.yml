@@ -1,0 +1,17 @@
+name: aquapor-env
+channels:
+  - conda-forge
+dependencies:
+  - python
+  - numpy
+  - xarray
+  - netcdf4
+  - geopandas
+  - rioxarray
+  - numpy
+  - gdal
+  - requests
+  - dask
+  - tqdm
+  - flox
+  - bottleneck
