@@ -356,6 +356,9 @@ if __name__ == "__main__":
     else:
         auth = tuple([str(x) for x in args.authenticate])
 
+    # auth = ("", "")
+    # years = [2018]
+    
     #######
     ## Define paths
     #######
@@ -477,20 +480,28 @@ if __name__ == "__main__":
             _ = os.rename(out_.replace(".nc", ""), out_)
         files.append(out_)
 
-    # #######
-    # ## Convert to DataFrame
-    # #######
+    #######
+    ## Convert to DataFrame
+    #######
     ds = xr.open_mfdataset(files)
     df = ds.to_dataframe()
     df = df.reset_index().set_index("m49")
+
+    #######
+    ## Calculate Volumes
+    #######
+    df["area"] = gdf.set_index("m49")["area"] # area is in km2
+    for var in ["aeti", "pcp", "irwr"]:
+        df[f"{var}-volume"] = (df[f"{var}-mean"] / 1000000) * df["area"]
     df["valid-fraction"] = df["irwr-count"] / df["country-count"] * 100
     df = df.drop(["country-count", "irwr-count"], axis=1)
     df = df.round({"valid-fraction": 0, "irwr-mean": 1, "aeti-mean": 1, "pcp-mean": 1})
     df.loc[
         (df["irwr-mean"].isna()) & (df["valid-fraction"].isna()), "valid-fraction"
     ] = 0
+    df = df.rename({"aeti-mean": "aeti-depth", "pcp-mean": "pcp-depth", "irwr-mean": "irwr-depth"}, axis=1)
     df = df.reset_index()[
-        ["m49", "name", "year", "valid-fraction", "aeti-mean", "pcp-mean", "irwr-mean"]
+        ["m49", "name", "year", "valid-fraction", "area", "aeti-depth", "aeti-volume", "pcp-depth", "pcp-volume", "irwr-depth", "irwr-volume"]
     ]
 
     df.to_csv(output_file)
