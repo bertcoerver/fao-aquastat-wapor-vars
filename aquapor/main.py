@@ -483,7 +483,7 @@ if __name__ == "__main__":
     #######
     ## Convert to DataFrame
     #######
-    ds = xr.open_mfdataset(files)
+    ds = xr.open_mfdataset(files, data_vars="all", compat="no_conflicts")
     df = ds.to_dataframe()
     df = df.reset_index().set_index("m49")
 
