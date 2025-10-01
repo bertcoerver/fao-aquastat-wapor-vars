@@ -272,7 +272,7 @@ def merge_tifs(
 
 def preprocess_imerg(imerg_fhs: List[str]) -> List[str]:
     fhs = list()
-    ds = xr.open_mfdataset(imerg_fhs, group="Grid")
+    ds = xr.open_mfdataset(imerg_fhs, group="Grid", data_vars="all", compat="no_conflicts")
     ds = (
         ds[["precipitation"]]
         .transpose("lat", "lon", ...)
@@ -415,7 +415,7 @@ if __name__ == "__main__":
     ## Open data
     #######
     ds = xr.open_mfdataset(
-        aeti_fhs + pcp_fhs, chunks={"x": 2**12, "y": 2**12}, preprocess=preprocess
+        aeti_fhs + pcp_fhs, chunks={"x": 2**12, "y": 2**12}, preprocess=preprocess, data_vars="all", compat="no_conflicts",
     )
     ds["country"] = (
         xr.open_dataarray(countries_fh, chunks="auto")
