@@ -2,6 +2,7 @@
 
 import itertools
 import os
+import zipfile
 from typing import List
 
 import requests
@@ -22,6 +23,33 @@ def is_valid(fp):
     except Exception:
         is_valid = False
     return is_valid
+
+
+def imerg_missing_months(years, folder, auth=None, is_valid=is_valid):
+    """Return `{year: [missing month filenames]}` for IMERG months not yet published.
+
+    The GPM `3IMERGM` monthly *Final* product lags real time by several months, so
+    a recent year can be requested before all 12 of its months exist. A lightweight
+    HEAD probe distinguishes published (200) from not-yet-published (404) files
+    without downloading anything; months already present and valid on disk are
+    assumed available and skipped so complete years can be reprocessed offline.
+    """
+    session = requests.Session()
+    missing = {}
+    for year in years:
+        gaps = []
+        for url in make_urls("IMERG_v7", [year]):
+            fn = os.path.split(url)[-1]
+            if is_valid(os.path.join(folder, fn)):
+                continue
+            resp = session.head(url, allow_redirects=True, auth=auth)
+            if resp.status_code == 404:
+                gaps.append(fn)
+            elif not resp.ok:
+                resp.raise_for_status()
+        if gaps:
+            missing[year] = gaps
+    return missing
 
 
 def download_url(
@@ -121,16 +149,59 @@ def download_urls(
     return out_fhs
 
 
+def download_shapefile(url, folder) -> str:
+    """Download a zipped shapefile from `url` and return the extracted `.shp` path.
+
+    The whole archive is extracted (a shapefile needs its `.dbf`/`.shx`/`.prj`
+    sidecars), unless the `.shp` is already present from a previous run.
+    """
+    zip_fp = download_urls([url], folder)[0]
+
+    with zipfile.ZipFile(zip_fp) as zf:
+        shp_name = next(
+            (n for n in zf.namelist() if n.lower().endswith(".shp")), None
+        )
+        if shp_name is None:
+            raise ValueError(f"No `.shp` found in `{zip_fp}`.")
+        shp_fp = os.path.join(folder, shp_name)
+        if not os.path.isfile(shp_fp):
+            zf.extractall(folder)
+
+    return shp_fp
+
+
+# --- IMERG monthly (GPM 3IMERGM) source configuration ---------------------
+# The pieces most likely to change are isolated here so switching product
+# versions is a one-place edit. The IMERG "Final" record is transitioning from
+# V07 to V08: V07 Final production deliberately stops at September 2025, and
+# V08 Final (with full reprocessing back to 1998) is scheduled for release in
+# summer 2026. See https://gpm.nasa.gov/data/news/imerg-v08-transition-schedule
+#
+# When V08 Final is public, confirm all three values below against the first
+# live file and update them. NOTE: GES DISC is also migrating to Earthdata
+# Cloud (the GrADS Data Server was retired 2026-04-06), so the *host* may change
+# to a cloud endpoint, not just the collection/version — verify IMERG_HOST too.
+IMERG_HOST = "https://gpm1.gesdisc.eosdis.nasa.gov"
+IMERG_COLLECTION = "GPM_3IMERGM.07"  # -> "GPM_3IMERGM.08" for V08
+IMERG_VERSION = "V07B"  # -> "V08A" / "V08B" / ... for V08
+
+
+def imerg_url(year, month):
+    """Build the download URL for a single IMERG monthly file."""
+    fn = (
+        f"3B-MO.MS.MRG.3IMERG.{year}{month:>02}01-S000000-E235959."
+        f"{month:>02}.{IMERG_VERSION}.HDF5"
+    )
+    return f"{IMERG_HOST}/data/GPM_L3/{IMERG_COLLECTION}/{year}/{fn}"
+
+
 def make_urls(product, years):
     """Build the list of download URLs for a given `product` and `years`."""
     if product == "IMERG_v7":
         urls = list(
             itertools.chain.from_iterable(
                 [
-                    [
-                        f"https://gpm1.gesdisc.eosdis.nasa.gov/data/GPM_L3/GPM_3IMERGM.07/{year}/3B-MO.MS.MRG.3IMERG.{year}{month:>02}01-S000000-E235959.{month:>02}.V07B.HDF5"
-                        for month in range(1, 13)
-                    ]
+                    [imerg_url(year, month) for month in range(1, 13)]
                     for year in years
                 ]
             )

@@ -20,10 +20,18 @@ def rasterize(
     dtype=gdalconst.GDT_Int32,
     ndv=-9999,
     where=None,
+    label=None,
 ):
-    """Burn `attribute` from `vector` onto the grid of `example_raster`."""
+    """Burn `attribute` from `vector` onto the grid of `example_raster`.
+
+    `label`, when given, is used as the output filename suffix instead of the
+    (possibly messy) `where` clause, e.g. `label="country"` -> `<name>_country.tif`.
+    """
     vector_ext = os.path.splitext(vector)[-1]
-    new_ext = ".tif" if where is None else f"{where}.tif"
+    if label is not None:
+        new_ext = f"_{label}.tif"
+    else:
+        new_ext = ".tif" if where is None else f"{where}.tif"
     out_fh = os.path.join(
         os.getcwd(), os.path.split(vector)[-1].replace(vector_ext, new_ext)
     )

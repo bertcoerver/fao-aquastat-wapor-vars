@@ -12,6 +12,21 @@ Create an account at `https://urs.earthdata.nasa.gov/`, then run for example (om
 
 `python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 2024 --authenticate username password`
 
+### Aggregation levels
+
+By default statistics are computed per **country**. Use `--aggregations` (`-g`) to
+select one or more of `country`, `basin` and `subbasin`; each level writes its own
+`results_<level>.csv`. The climate inputs are downloaded only once and reused
+across the selected levels.
+
+`python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 --authenticate username password --aggregations country basin subbasin`
+
+| level | polygons | id field | writes |
+|---|---|---|---|
+| `country` | UN areas (incl. EU & China clusters) | `M49` | `results_country.csv` |
+| `basin` | FAO Major Hydrological Basins | `FAO_MB_ID` | `results_basin.csv` |
+| `subbasin` | FAO Sub-Basins | `FAO_SB_ID` | `results_subbasin.csv` |
+
 ## Code structure
 
 The code is split over a few modules in [`aquapor/`](aquapor/):
@@ -20,37 +35,45 @@ The code is split over a few modules in [`aquapor/`](aquapor/):
 - `pipeline.py` — one function per workflow stage, plus a `run` orchestrator.
 - `download.py` — building download URLs and fetching input files.
 - `raster.py` — GDAL-based raster operations (rasterizing, merging, preprocessing).
+- `aggregations.py` — registry describing each aggregation level (shapefile URL, id/name fields, groupings).
 
 ## Running steps manually
 
 Each stage of the workflow is a function in `pipeline.py` that takes the outputs
 of the preceding stages as arguments, so steps can be run one at a time (e.g.
-from a REPL). Run this from inside the `aquapor/` folder:
+from a REPL). The climate steps are shared; the vector steps take an aggregation
+config from `aggregations.py`. Run this from inside the `aquapor/` folder:
 
 ```python
+import geopandas as gpd
+
 import pipeline
+from aggregations import AGGREGATIONS
 
-folders, output_file = pipeline.setup_folders("/path/to/workdir")
+workdir, years = "/path/to/workdir", [2023, 2024]
+aggregation = "country"  # or "basin" / "subbasin"
 
-# Download input data
-countries_gpkg, imerg_fhs, chirps_fhs, aeti_fhs = pipeline.download_input_data(
-    [2023, 2024], ("username", "password"), folders
+folders = pipeline.setup_folders(workdir, [aggregation])
+
+# Download & merge the (shared) climate inputs
+imerg_fhs, chirps_fhs, aeti_fhs = pipeline.download_climate_data(
+    years, ("username", "password"), folders
 )
+pcp_fhs = pipeline.merge_precipitation(imerg_fhs, chirps_fhs, aeti_fhs, years)
+ds_base = pipeline.open_climate_data(aeti_fhs, pcp_fhs)
 
-# Merge two precipitation products
-pcp_fhs = pipeline.merge_precipitation(imerg_fhs, chirps_fhs, aeti_fhs, [2023, 2024])
+# Vector steps for one aggregation
+agg_cfg = AGGREGATIONS[aggregation]
+shp = pipeline.download_aggregation_vector(aggregation, folders[aggregation])
+grouping_tifs = pipeline.rasterize_vectors(shp, aeti_fhs[0], agg_cfg)
+ds = pipeline.attach_groupings(ds_base, grouping_tifs)
 
-# Rasterize vector data
-countries_fh, clusters_fh = pipeline.rasterize_vectors(countries_gpkg, aeti_fhs[0])
-
-# Open data
-ds, gdf, country_coords, cluster_coords = pipeline.open_data(
-    aeti_fhs, pcp_fhs, countries_fh, clusters_fh, countries_gpkg
-)
-
-# Calculate statistics and write the results CSV
-files = pipeline.calculate_statistics(
-    ds, gdf, country_coords, cluster_coords, output_file
-)
-df = pipeline.build_dataframe(files, gdf, output_file)
+gdf = gpd.read_file(shp)
+groups = pipeline.expected_groups(gdf, agg_cfg)
+output_file = pipeline.results_path(workdir, aggregation)
+files = pipeline.calculate_statistics(ds, gdf, agg_cfg, groups, output_file)
+df = pipeline.build_dataframe(files, gdf, agg_cfg, output_file)
 ```
+
+`pipeline.run(years, auth, aggregations, workdir=...)` chains all of the above and
+loops over the selected aggregations.

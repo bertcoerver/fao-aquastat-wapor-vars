@@ -10,6 +10,7 @@ from datetime import datetime
 from getpass import getpass
 
 import pipeline
+from aggregations import AGGREGATION_CHOICES
 
 IMERG_URL = "https://urs.earthdata.nasa.gov/"
 
@@ -26,6 +27,14 @@ def parse_args(argv=None):
     )
     _ = parser.add_argument(
         "-a", "--authenticate", nargs=2, help=f"Create an account at {IMERG_URL}"
+    )
+    _ = parser.add_argument(
+        "-g",
+        "--aggregations",
+        nargs="+",
+        choices=AGGREGATION_CHOICES,
+        default=["country"],
+        help="One or more spatial aggregation levels to compute (default: country).",
     )
     return parser.parse_args(argv)
 
@@ -66,11 +75,21 @@ def resolve_auth(authenticate_arg):
     return tuple([str(x) for x in authenticate_arg])
 
 
+def resolve_aggregations(aggregations_arg):
+    """Deduplicate the --aggregations argument while preserving order."""
+    seen = []
+    for aggregation in aggregations_arg:
+        if aggregation not in seen:
+            seen.append(aggregation)
+    return seen
+
+
 def main(argv=None):
     args = parse_args(argv)
     years = resolve_years(args.years)
     auth = resolve_auth(args.authenticate)
-    pipeline.run(years, auth)
+    aggregations = resolve_aggregations(args.aggregations)
+    pipeline.run(years, auth, aggregations)
 
 
 if __name__ == "__main__":
