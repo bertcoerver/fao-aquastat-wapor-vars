@@ -1,16 +1,44 @@
 ## How to run
 
-`cd "folder/in/which/to/output"`
+### 1. Install
 
-`git clone https://github.com/bertcoerver/fao-aquastat-wapor-vars`
+Move to the folder in which you want the outputs to be written, then clone the
+repository and create the conda environment:
 
-`conda env create --file=fao-aquastat-wapor-vars/environment.yml`
+```bash
+cd "folder/in/which/to/output"
+git clone https://github.com/bertcoerver/fao-aquastat-wapor-vars
+conda env create --file=fao-aquastat-wapor-vars/environment.yml
+conda activate aquapor-env
+```
 
-`conda activate aquapor-env`
+### 2. Get NASA Earthdata credentials
 
-Create an account at `https://urs.earthdata.nasa.gov/`, then run for example (omit `--years` to only run most recent year):
+The script downloads IMERG precipitation data, which requires a (free) NASA
+Earthdata account. Create one at <https://urs.earthdata.nasa.gov/> and pass the
+username and password via `--authenticate` (if omitted, the script will prompt
+for them interactively).
 
-`python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 2024 --authenticate username password`
+### 3. Run the script
+
+```bash
+python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 2024 --authenticate username password
+```
+
+The available options are:
+
+| option | description |
+|---|---|
+| `-y`, `--years` | One or more years between 2018 and last year. Omit to run only the most recent completed year. |
+| `-a`, `--authenticate` | Earthdata username and password. Omit to be prompted interactively. |
+| `-g`, `--aggregations` | One or more of `country`, `basin`, `subbasin` (default: `country`). |
+
+For example, to compute the statistics for 2024 aggregated per country **and**
+per basin in one run:
+
+```bash
+python fao-aquastat-wapor-vars/aquapor/main.py --years 2024 --authenticate username password --aggregations country basin
+```
 
 ### Aggregation levels
 
@@ -18,8 +46,6 @@ By default statistics are computed per **country**. Use `--aggregations` (`-g`) 
 select one or more of `country`, `basin` and `subbasin`; each level writes its own
 `results_<level>.csv`. The climate inputs are downloaded only once and reused
 across the selected levels.
-
-`python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 --authenticate username password --aggregations country basin subbasin`
 
 | level | polygons | id field | writes |
 |---|---|---|---|
