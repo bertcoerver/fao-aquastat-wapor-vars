@@ -21,11 +21,7 @@ for them interactively).
 
 ### 3. Run the script
 
-```bash
-python fao-aquastat-wapor-vars/aquapor/main.py --years 2023 2024 --authenticate username password
-```
-
-The available options are:
+Available options are:
 
 | option | description |
 |---|---|
