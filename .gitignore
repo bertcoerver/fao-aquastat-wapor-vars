@@ -1,2 +1,3 @@
 .DS_Store
 UN_AREAS.gpkg
+*.pyc
